@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
+	"data-modelling/connection"
 	"fmt"
+
 	"log"
 	"net/http"
 	"strconv"
@@ -14,6 +17,8 @@ import (
 func main() {
 	route := mux.NewRouter()
 
+	connection.DatabaseConnection()
+	
 	route.PathPrefix("/public/").Handler(http.StripPrefix("/public", http.FileServer(http.Dir("./public/"))))
 
 
@@ -40,13 +45,36 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	rows, errQuery := connection.Conn.Query(context.Background(), "SELECT * FROM tb_projects")
+	if errQuery != nil {
+		fmt.Println("Message : " + errQuery.Error())
+		return
+	}
+
+	var result []dataReceive
+
+	for rows.Next() {
+		var each = dataReceive{}
+
+		err := rows.Scan(&each.ID, &each.Projectname, &each.Startdate, &each.Enddate, &each.Description, &each.Technologies)
+		if err != nil {
+			fmt.Println("Message : " + err.Error())
+			return
+		}
+
+		result = append(result, each)
+	}
+
+	fmt.Println(result)
+
 	dataCaller := map[string]interface{} {
-		"Projects": dataSubmit,
+		"Projects": result,
 	}
 
 	w.WriteHeader(http.StatusOK)
 	tmpl.Execute(w, dataCaller)
 }
+
 
 func projectPage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
@@ -63,7 +91,7 @@ func projectPage(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, nil)
 }
 
-// Struct buat menentukan variable sama tipe data nya
+// // Struct buat menentukan variable sama tipe data nya
 type dataReceive struct {
 	ID int
 	Projectname string
@@ -74,7 +102,7 @@ type dataReceive struct {
 	Duration string
 }
 
-// Nanti si variable dataSubmit ini bakal di isi sama value dari function di bawah
+// // Nanti si variable dataSubmit ini bakal di isi sama value dari function di bawah
 var dataSubmit = []dataReceive{
 
 }
